@@ -1,0 +1,12 @@
+flask
+Flask-SQLAlchemy
+pymongo
+pymysql
+faker
+joblib
+youtube-comment-downloader
+scikit-learn == 1.3.0
+scipy 
+pandas
+nltk
+matplotlib
