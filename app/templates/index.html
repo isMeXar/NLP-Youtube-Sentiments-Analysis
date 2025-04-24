@@ -5,46 +5,328 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <title>YouTube Comment Analysis</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f6f8fc 0%, #e9ecef 100%);
+        }
+        .gradient-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+        .input-group {
+            background: white;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+            height: 4rem;
+        }
+        .input-group:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .analyze-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        .analyze-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        select {
+            background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%);
+            background-position: calc(100% - 20px) calc(1em + 4px), calc(100% - 15px) calc(1em + 4px);
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+            padding-right: 3rem;
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-800">
-    <div class="w-11/12 mx-auto p-8 bg-white dark:bg-gray-900 rounded-md shadow-md mt-5">
-        <div class="flex items-center justify-center mb-6">
-            <svg class="h-10 w-10 mr-2 fill-current text-red-500" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<body class="min-h-screen py-8">
+    <!-- Header section -->
+    <div class="w-full px-8 mb-12"> <!-- Changed to full width -->
+        <div class="flex items-center justify-center">
+            <svg class="h-16 w-16 mr-4 fill-current text-red-500" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <g>
                     <path fill="none" d="M0 0h24v24H0z" />
                     <path d="M21.03 6.58c-.2-.74-.78-1.32-1.51-1.51C17.67 5 12 5 12 5s-5.67 0-7.52.07c-.73.2-1.31.77-1.51 1.51C3 8.45 3 12 3 12s0 3.55.97 5.42c.2.74.78 1.32 1.51 1.51C6.33 19 12 19 12 19s5.67 0 7.52-.07c.73-.2 1.31-.77 1.51-1.51C21 15.55 21 12 21 12s0-3.55-.97-5.42zM9.92 15.5V8.5l6.67 3-6.67 3z" />
                 </g>
             </svg>
-            <h1 class="text-3xl font-semibold text-blue-600 dark:text-blue-400">YouTube Comment Analysis</h1>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-gray-600">
+                YouTube Sentiment Analysis
+            </h1>
         </div>
+    </div>
 
-        <form action="/analyze" method="post" class="mb-8 flex justify-between">
-            <div class="flex flex-grow items-center"> <!-- Added flex utilities and items-center -->
-                <input type="text" id="video_url" name="video_url" required placeholder="Enter YouTube Video URL"
-                    class="mt-1 p-2.5 block w-full rounded-md border border-gray-300 bg-gray-50 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                <button type="submit"
-                    class="ml-4 px-8 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring focus:border-blue-300 h-full">Analyze</button>
+    <!-- Input form section - matched width with output container -->
+    <div class="w-11/12 max-w-[1400px] mx-auto mb-8">
+        <div class="gradient-card rounded-2xl p-6 shadow-lg">
+            <div class="flex justify-between items-center gap-2 w-full">
+                <!-- Input field -->
+                <input type="text" id="video_url" required placeholder="Enter YouTube Video URL"
+                    style="flex: 7;"
+                    class="h-16 p-4 text-lg border-2 border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-all">
+                
+                <!-- Dropdown -->
+                <select id="model-type" 
+                    style="flex: 2;"
+                    class="h-16 p-4 text-lg border-2 border-gray-200 rounded-lg outline-none cursor-pointer appearance-none bg-white focus:border-blue-500 transition-all"
+                    style="background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%);
+                           background-position: calc(100% - 20px) calc(1em + 4px), calc(100% - 15px) calc(1em + 4px);
+                           background-size: 6px 6px, 6px 6px;
+                           background-repeat: no-repeat;
+                           padding-right: 3rem;">
+                    <option value="deep">Deep Learning Model</option>
+                    <option value="traditional">Traditional ML Model</option>
+                </select>
+
+                <!-- Button -->
+                <button onclick="startAnalysis()" id="analyze-btn"
+                    style="flex: 1;"
+                    class="h-16 px-6 text-white font-medium text-lg rounded-lg transition-all duration-300 hover:shadow-lg bg-gradient-to-r from-red-500 to-gray-500">
+                    Analyze
+                </button>
             </div>
-        </form>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% if video_embed %}
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-2 text-blue-600 dark:text-blue-400">YouTube Video</h2>
-                <div class="aspect-w-16 aspect-h-9">
-                    <iframe width="560" height="500" src="{{ video_embed }}" frameborder="0" allowfullscreen class="w-full rounded-md shadow-md"></iframe>
+        </div>
+    </div>
+
+    <!-- Output section - same width as input container -->
+    <div class="w-11/12 max-w-[1400px] mx-auto gradient-card rounded-2xl p-12">
+        <!-- Content Grid with video and plot -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Video Container - visible from start -->
+            <div id="video-container" class="bg-gray-100 rounded-lg shadow-lg" style="height: 500px;">
+                <div class="w-full h-full flex items-center justify-center">
+                    <!-- Empty state -->
+                    <div id="empty-state" class="text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-lg font-medium">Enter a YouTube URL to begin</p>
+                    </div>
+                    <!-- Video iframe (hidden initially) -->
+                    <iframe id="video-frame" width="100%" height="100%" frameborder="0" allowfullscreen 
+                        class="rounded-lg hidden"></iframe>
                 </div>
             </div>
 
-            <div class="mb-8 md:mb-0">
-                <h2 class="text-xl font-semibold mb-2 text-blue-600 dark:text-blue-400">Sentiment Analysis</h2>
-                <img src="{{ url_for('static', filename='plot.png') }}" alt="Sentiment Analysis Plot"
-                    class="w-full rounded-md shadow-md">
+            <!-- Chart Container -->
+            <div style="height: 500px">
+                <canvas id="sentimentChart"></canvas>
             </div>
-            {% endif %}
         </div>
+
     </div>
+
+    <script>
+        const socket = io();
+        let chart;
+
+        // Initialize the chart
+        function initChart() {
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Negative', 'Neutral', 'Positive'],
+                    datasets: [{
+                        label: 'Negative',
+                        data: [0, null, null],
+                        backgroundColor: '#ef4444',
+                        stack: 'stack0'
+                    },
+                    {
+                        label: 'Neutral',
+                        data: [null, 0, null],
+                        backgroundColor: '#eab308',
+                        stack: 'stack0'
+                    },
+                    {
+                        label: 'Positive',
+                        data: [null, null, 0],
+                        backgroundColor: '#22c55e',
+                        stack: 'stack0'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    family: 'Poppins',
+                                    size: 14
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Sentiment Distribution',
+                            font: {
+                                family: 'Poppins',
+                                size: 20,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                bottom: 30
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize chart on page load
+        initChart();
+
+        // Handle real-time updates
+        socket.on('sentiment_update', function(data) {
+            const total = data.total;
+            const counts = data.counts;
+            
+            // Update chart data
+            chart.data.datasets[0].data = [
+                (counts.Negative / total) * 100,
+                null,
+                null
+            ];
+            chart.data.datasets[1].data = [
+                null,
+                (counts.Neutral / total) * 100,
+                null
+            ];
+            chart.data.datasets[2].data = [
+                null,
+                null,
+                (counts.Positive / total) * 100
+            ];
+            chart.update();
+
+            // Update current comment display with animation
+            const commentDiv = document.getElementById('current-comment');
+            commentDiv.classList.remove('hidden');
+            commentDiv.classList.add('animate-fade-in');
+            
+            document.getElementById('comment-text').textContent = data.current_comment;
+            const sentimentElement = document.getElementById('comment-sentiment');
+            sentimentElement.textContent = `Sentiment: ${data.current_sentiment}`;
+            
+            // Add color based on sentiment
+            sentimentElement.className = 'font-medium text-lg';
+            switch(data.current_sentiment) {
+                case 'Negative':
+                    sentimentElement.classList.add('text-red-500');
+                    break;
+                case 'Neutral':
+                    sentimentElement.classList.add('text-yellow-500');
+                    break;
+                case 'Positive':
+                    sentimentElement.classList.add('text-green-500');
+                    break;
+            }
+        });
+
+        function getVideoId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        async function startAnalysis() {
+            const videoUrl = document.getElementById('video_url').value;
+            const modelType = document.getElementById('model-type').value;
+            const videoId = getVideoId(videoUrl);
+
+            if (!videoId) {
+                alert('Please enter a valid YouTube URL');
+                return;
+            }
+
+            // Show video and hide empty state
+            const videoFrame = document.getElementById('video-frame');
+            const emptyState = document.getElementById('empty-state');
+            
+            videoFrame.src = `https://www.youtube.com/embed/${videoId}`;
+            videoFrame.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            // Reset chart
+            chart.data.datasets.forEach((dataset, index) => {
+                dataset.data = [
+                    index === 0 ? 0 : null,
+                    index === 1 ? 0 : null,
+                    index === 2 ? 0 : null
+                ];
+            });
+            chart.update();
+
+            // Disable button during analysis
+            const analyzeBtn = document.getElementById('analyze-btn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.classList.add('opacity-50');
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `video_url=${encodeURIComponent(videoUrl)}&model_type=${modelType}`
+                });
+
+                if (!response.ok) {
+                    throw new Error('Analysis failed');
+                }
+            } catch (error) {
+                alert('Error starting analysis: ' + error.message);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.classList.remove('opacity-50');
+            }
+        }
+    </script>
 </body>
 
 </html>

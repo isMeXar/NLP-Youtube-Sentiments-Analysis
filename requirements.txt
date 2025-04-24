@@ -10,3 +10,8 @@ scipy
 pandas
 nltk
 matplotlib
+catboost
+xgboost
+lightgbm
+flask-socketio
+eventlet
